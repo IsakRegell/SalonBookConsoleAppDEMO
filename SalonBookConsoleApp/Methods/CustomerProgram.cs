@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SalonBookConsoleApp.Models;
-using System;
+using Spectre.Console;
 
 namespace SalonBookConsoleApp.Methods
 {
@@ -14,7 +14,7 @@ namespace SalonBookConsoleApp.Methods
             {
                 Console.Clear();
                 Console.WriteLine($"=== Kundmeny ({loggedInCustomer.Name}) ==="); // Visar kundens namn
-                Console.WriteLine("1. Visa bokningar");
+                Console.WriteLine("1. Visa mina bokningar");
                 Console.WriteLine("2. Boka tid");
                 Console.WriteLine("3. Avboka tid");
                 Console.WriteLine("4. Logga ut");
@@ -28,7 +28,6 @@ namespace SalonBookConsoleApp.Methods
                         ShowBookings(loggedInCustomer);
                         break;
                     case "2":
-                        ShowAllServices(loggedInCustomer);
                         BookAService(loggedInCustomer);
                         break;
                     case "3":
@@ -54,8 +53,123 @@ namespace SalonBookConsoleApp.Methods
 
         public void BookAService(Customer loggedInCustomer)
         {
-            Console.Write("\nVälj ett av alternativen ovan: ");
-            string serviceChoice = Console.ReadLine()!;
+            using (var db = new SalonBookContext())
+            {
+                // Välj tjänst
+                var services = db.Services.ToList();
+                if (services.Count == 0)
+                {
+                    Console.WriteLine("\nInga tjänster finns tillgängliga.");
+                    return;
+                }
+
+                var serviceSelection = AnsiConsole.Prompt(
+                    new SelectionPrompt<Service>()
+                        .Title("Välj en tjänst:\n")
+                        .PageSize(5)
+                        .AddChoices(services)
+                        .UseConverter(s => $"{s.ServiceId}. {s.Name} - {s.Price} kr")
+                );
+
+                int serviceId = serviceSelection.ServiceId;
+                var service = serviceSelection;
+
+                // Begränsa datumval till max 7 dagar framåt och skapa en lista av valbara datum
+                DateTime today = DateTime.Today;
+                DateTime maxDate = today.AddDays(7);
+                var availableDates = Enumerable.Range(0, 8)
+                                               .Select(offset => today.AddDays(offset))
+                                               .ToList();
+
+                // Använd navigeringsmeny för att välja datum med piltangenter
+                DateTime requestedDate = AnsiConsole.Prompt(
+                    new SelectionPrompt<DateTime>()
+                        .Title("Välj önskat datum:")
+                        .PageSize(8)
+                        .AddChoices(availableDates)
+                        .UseConverter(date => date.ToString("yyyy-MM-dd"))
+                );
+
+                // Välj tid på dagen
+                TimeSpan requestedTime = AnsiConsole.Prompt(
+                    new SelectionPrompt<TimeSpan>()
+                        .Title("Välj önskad tid:")
+                        .PageSize(10) // Se till att detta är större än antalet alternativ
+                        .AddChoices(
+                           new TimeSpan(9, 0, 0),
+                           new TimeSpan(10, 0, 0),
+                           new TimeSpan(11, 0, 0),
+                           new TimeSpan(13, 0, 0),
+                           new TimeSpan(14, 0, 0),
+                           new TimeSpan(15, 0, 0)
+                         )
+                        .UseConverter(t => t.ToString(@"hh\:mm"))
+);
+
+
+
+                DateTime requestedDateTime = requestedDate.Add(requestedTime);
+
+                // Kolla om kunden redan har en bokning som överlappar
+                var customerBookings = db.Bookings
+                    .Where(b => b.CustomerId == loggedInCustomer.CustomerId)
+                    .Include(b => b.Service)
+                    .ToList();
+
+                foreach (var booking in customerBookings)
+                {
+                    DateTime existingStartTime = booking.DateTime;
+                    DateTime existingEndTime = existingStartTime.AddMinutes(booking.Service.Duration);
+                    DateTime newEndTime = requestedDateTime.AddMinutes(service.Duration);
+
+                    if (requestedDateTime < existingEndTime && existingStartTime < newEndTime)
+                    {
+                        Console.WriteLine($"Du har redan en bokning ({booking.Service.Name}) vid denna tid. Välj en annan tid. Du skickas tillbaka till menyn.");
+                        return;
+                    }
+                }
+
+                // Kolla tillgänglig personal
+                var availableStaff = db.Staff
+                    .Where(s => !db.Bookings.Any(b =>
+                        b.StaffId == s.StaffId &&
+                        b.DateTime < requestedDateTime.AddMinutes(service.Duration) &&
+                        b.DateTime.AddMinutes(b.Service.Duration) > requestedDateTime))
+                    .ToList();
+
+                if (availableStaff.Count == 0)
+                {
+                    Console.WriteLine("Ingen personal är tillgänglig vid den tiden. Välj en annan tid.");
+                    return;
+                }
+
+                // Välj personal
+                var assignedStaff = availableStaff.First();
+
+                // Skapa bokningen
+                var newBooking = new Booking
+                {
+                    CustomerId = loggedInCustomer.CustomerId,
+                    ServiceId = serviceId,
+                    StaffId = assignedStaff.StaffId,
+                    DateTime = requestedDateTime,
+                    Status = "Booked"
+                };
+
+                //Felhantering vid bokningssparning
+                try
+                {
+                    db.Bookings.Add(newBooking);
+                    db.SaveChanges();
+                    Console.WriteLine($"Bokningen för {service.Name} har bekräftats med {assignedStaff.Name} den {requestedDateTime}.");
+                }
+                catch (DbUpdateException ex)
+                {
+                    Console.WriteLine("Fel vid sparning av bokning!");
+                    Console.WriteLine($"Detaljer: {ex.InnerException?.Message}");
+                }
+
+            }
         }
         public void ShowAllServices(Customer loggedInCustomer)
         {
@@ -79,7 +193,6 @@ namespace SalonBookConsoleApp.Methods
                 }
             }
         }
-
         private void ShowBookings(Customer loggedInCustomer)
         {
             using (var db = new SalonBookContext())
