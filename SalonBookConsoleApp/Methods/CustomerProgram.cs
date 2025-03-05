@@ -161,7 +161,13 @@ namespace SalonBookConsoleApp.Methods
                 {
                     db.Bookings.Add(newBooking);
                     db.SaveChanges();
-                    Console.WriteLine($"Bokningen för {service.Name} har bekräftats med {assignedStaff.Name} den {requestedDateTime}.");
+                    Console.WriteLine("\nBokningsbekräftlese");
+                    Console.WriteLine($"Datum & Tid: {requestedDateTime}");
+                    Console.WriteLine($"Tjänst: {service.Name}");
+                    Console.WriteLine($"Personal: {assignedStaff.Name}");
+                    Console.WriteLine($"Kostnad: {service.Price}");
+
+                    //Console.WriteLine($"Bokningen för {service.Name} har bekräftats med {assignedStaff.Name} den {requestedDateTime}.");
                 }
                 catch (DbUpdateException ex)
                 {
