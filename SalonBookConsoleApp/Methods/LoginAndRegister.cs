@@ -8,8 +8,9 @@ using System.Threading.Tasks;
 
 namespace SalonBookConsoleApp.Methods
 {
-    public class LoginManeger
+    public class LoginAndRegister
     {
+        CustomerProgram customerProgram = new CustomerProgram();
         public void Login(string userType)
         {
             CustomerProgram menus = new CustomerProgram();
@@ -67,7 +68,16 @@ namespace SalonBookConsoleApp.Methods
                 db.Customers.Add(customer);
                 db.SaveChanges();
 
-                Console.WriteLine("Ny kund registrerad! Du kan nu logga in.");
+                Console.Clear() ;
+                Console.WriteLine("Ny kund registrerad!");
+                Console.WriteLine("\nTryck på valfri tangent för att logga in dig...");
+                Console.ReadKey(); 
+
+                // 🔹 Logga in användaren direkt
+                Customer loggedInCustomer = customer;
+
+                // Starta kundmenyn direkt
+                customerProgram.CustomerMenu(loggedInCustomer); 
             }
         }
     }
