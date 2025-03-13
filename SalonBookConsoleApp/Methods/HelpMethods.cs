@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SalonBookConsoleApp.Methods;
 using SalonBookConsoleApp.Models;
 using Spectre.Console;
 
@@ -10,7 +11,7 @@ public static class HelpMethods
         var serviceOptions = services
             .Select(s => new { Service = s, DisplayText = $"{s.ServiceId}. {s.Name} - {s.Price} kr" })
             .ToList();
-        serviceOptions.Add(new { Service = (Service)null, DisplayText = "❌ Avbryt bokning" });
+        serviceOptions.Add(new { Service = (Service)null, DisplayText = "Avbryt bokning" });
 
         var selection = AnsiConsole.Prompt(
             new SelectionPrompt<dynamic>()
@@ -22,6 +23,7 @@ public static class HelpMethods
 
         if (selection.Service == null)
         {
+            Console.Clear();
             Console.WriteLine("Bokningen har avbrutits.");
             return null;
         }
@@ -39,9 +41,9 @@ public static class HelpMethods
         DateTime selectedDate = AnsiConsole.Prompt(
             new SelectionPrompt<DateTime>()
                 .Title("Välj önskat datum:")
-                .PageSize(8)
+                .PageSize(9)
                 .AddChoices(availableDates)
-                .UseConverter(date => date == DateTime.MinValue ? "❌ Avbryt bokning" : date.ToString("yyyy-MM-dd"))
+                .UseConverter(date => date == DateTime.MinValue ? "Avbryt bokning" : date.ToString("yyyy-MM-dd"))
         );
 
         if (selectedDate == DateTime.MinValue)
@@ -64,7 +66,7 @@ public static class HelpMethods
                 .Title("Välj önskad tid:")
                 .PageSize(10)
                 .AddChoices(timeOptions)
-                .UseConverter(t => t == TimeSpan.MinValue ? "❌ Avbryt bokning" : t.ToString(@"hh\:mm"))
+                .UseConverter(t => t == TimeSpan.MinValue ? "Avbryt bokning" : t.ToString(@"hh\:mm"))
         );
 
         if (selectedTime == TimeSpan.MinValue)
@@ -140,6 +142,14 @@ public static class HelpMethods
             Console.WriteLine($"Tjänst: {service.Name}");
             Console.WriteLine($"Personal: {assignedStaff.Name}");
             Console.WriteLine($"Kostnad: {service.Price} kr");
+
+            //Skapa notifierare och registrera observatörer
+            BookingNotifier notifier = new BookingNotifier();
+            notifier.Attach(new EmailNotification());
+            notifier.Attach(new SmsNotification());
+
+            // Skicka notifikationer
+            notifier.Notify(newBooking);
         }
         catch (DbUpdateException ex)
         {
@@ -161,5 +171,11 @@ public static class HelpMethods
         string startMenuChoice = Console.ReadLine()!;
         Console.Clear();
         return startMenuChoice;
+    }
+
+    public static void ProgramPaus()
+    {
+        Console.WriteLine("\nTryck på valfri tangent för att fortsätta...");
+        Console.ReadKey();
     }
 }
