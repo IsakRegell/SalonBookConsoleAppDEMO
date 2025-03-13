@@ -33,9 +33,6 @@ public class Program
                     Console.WriteLine("Ogiltigt val, försök igen.");
                     break;
             }
-
-            Console.WriteLine("\nTryck på valfri tangent för att återgå till menyn...");
-            Console.ReadKey();
         }
     }
 }

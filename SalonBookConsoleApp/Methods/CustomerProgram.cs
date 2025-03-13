@@ -19,27 +19,24 @@ namespace SalonBookConsoleApp.Methods
                 {
                     case "1":
                         ShowBookings(loggedInCustomer);
+                        HelpMethods.ProgramPaus();
                         break;
                     case "2":
                         BookAService(loggedInCustomer);
+                        HelpMethods.ProgramPaus();
                         break;
                     case "3":
                         Console.WriteLine($"{loggedInCustomer.Name} avbokar en tid...");
+                        HelpMethods.ProgramPaus();
                         break;
                     case "4":
                         Console.WriteLine("Du loggas ut...");
+                        Thread.Sleep(2000);
                         running = false; // Avsluta loopen och gå tillbaka till huvudmenyn
                         break;
                     default:
                         Console.WriteLine("Ogiltigt val, försök igen.");
                         break;
-                }
-
-                //// Förhindra att menyn omedelbart startar om utan att visa resultat
-                if (running)
-                {
-                    Console.WriteLine("\nTryck på valfri tangent för att fortsätta...");
-                    Console.ReadKey();
                 }
             }
         }
